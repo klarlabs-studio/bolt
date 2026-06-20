@@ -42,6 +42,15 @@ func NewConsoleHandler(out io.Writer) *ConsoleHandler {
 	return &ConsoleHandler{out: out}
 }
 
+// NewTextHandler creates a handler that writes human-readable, colorized text
+// for development. It is the spec-named development handler and is an alias for
+// [NewConsoleHandler] — both return the same [*ConsoleHandler].
+//
+//	logger := bolt.New(bolt.NewTextHandler(os.Stderr))
+func NewTextHandler(out io.Writer) *ConsoleHandler {
+	return NewConsoleHandler(out)
+}
+
 // Write handles the log event with zero allocations by streaming JSON parsing.
 func (h *ConsoleHandler) Write(e *Event) error {
 	h.mu.Lock()
@@ -106,6 +115,17 @@ func MultiHandler(handlers ...Handler) Handler {
 	h := make([]Handler, len(handlers))
 	copy(h, handlers)
 	return &multiHandler{handlers: h}
+}
+
+// NewMultiHandler returns a Handler that writes to all provided handlers. It is
+// the spec-named constructor and is an alias for [MultiHandler].
+//
+//	logger := bolt.New(bolt.NewMultiHandler(
+//	    bolt.NewJSONHandler(logFile),
+//	    bolt.NewTextHandler(os.Stdout),
+//	))
+func NewMultiHandler(handlers ...Handler) Handler {
+	return MultiHandler(handlers...)
 }
 
 // Write sends the event to all handlers, returning the first error encountered.
