@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // TestOpenTelemetryIntegration tests OpenTelemetry trace/span ID injection
@@ -363,14 +363,15 @@ func TestOpenTelemetryEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("Global Tracer Provider", func(t *testing.T) {
-		// Verify we're using otel.GetTracerProvider() correctly
-		// This test ensures compatibility with global OpenTelemetry setup
+	t.Run("Tracer Provider", func(t *testing.T) {
+		// Verify Ctx works with a TracerProvider-derived span. We use the
+		// trace-API noop provider rather than otel.GetTracerProvider() so the
+		// core module stays within the otel/trace dependency boundary.
 		var buf bytes.Buffer
 		logger := New(NewJSONHandler(&buf))
 
-		// Use global tracer provider (default)
-		tp := otel.GetTracerProvider()
+		// Use a trace-API tracer provider
+		tp := noop.NewTracerProvider()
 		tracer := tp.Tracer("test-tracer")
 
 		ctx, span := tracer.Start(context.Background(), "test-span")

@@ -119,8 +119,10 @@ jobs:
         # Run benchmarks and check for allocations
         if RESULT=$(go test -bench=BenchmarkZeroAllocation -benchmem 2>&1); then
           echo "$RESULT"
-          # Check if main benchmark has 0 allocations
-          if echo "$RESULT" | grep -q "0 allocs/op"; then
+          # Check that the benchmark reports exactly 0 allocs/op. The leading
+          # boundary (start-of-field or non-digit) prevents "10 allocs/op",
+          # "20 allocs/op", etc. from matching the "0 allocs/op" substring.
+          if echo "$RESULT" | grep -qE '(^|[^0-9])0 allocs/op'; then
             echo "✅ Zero allocations maintained for core logging"
           else
             echo "❌ Allocations detected in core logging path"

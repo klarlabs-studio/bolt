@@ -48,6 +48,24 @@ type SlogHandlerOptions struct {
 	AddSource bool
 }
 
+// Compile-time guarantee that the slog adapter is a conformant slog.Handler.
+// bolt exposes two surfaces: the zero-allocation fluent Event API
+// (logger.Info().Str(...).Msg(...)) and this conformant slog.Handler adapter.
+var _ slog.Handler = (*SlogHandler)(nil)
+
+// NewSlogJSONHandler returns a conformant [slog.Handler] that writes JSON using
+// Bolt's serialization. It is the documented, spec-named entry point for using
+// bolt as a drop-in slog handler in production:
+//
+//	logger := slog.New(bolt.NewSlogJSONHandler(os.Stdout, nil))
+//	slog.SetDefault(logger)
+//
+// It is an alias for [NewSlogHandler]. For the zero-allocation fluent API, use
+// [New] with [NewJSONHandler] instead.
+func NewSlogJSONHandler(out io.Writer, opts *SlogHandlerOptions) slog.Handler {
+	return NewSlogHandler(out, opts)
+}
+
 // NewSlogHandler creates a new [slog.Handler] that writes JSON logs using
 // Bolt's zero-allocation serialization. If opts is nil, defaults are used.
 func NewSlogHandler(out io.Writer, opts *SlogHandlerOptions) *SlogHandler {

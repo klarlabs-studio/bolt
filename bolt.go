@@ -48,11 +48,9 @@
 //
 // # Configuration
 //
-// Environment variables:
-//   - BOLT_LEVEL: Set log level (trace, debug, info, warn, error, fatal)
-//   - BOLT_FORMAT: Set output format (json, console)
-//
-// Programmatic configuration:
+// Bolt has no global logger and reads no environment variables. Loggers are
+// always constructed explicitly and injected via constructors. Configure the
+// level programmatically:
 //
 //	logger := bolt.New(bolt.NewJSONHandler(os.Stdout)).SetLevel(bolt.DEBUG)
 //
@@ -412,15 +410,6 @@ func (l *Logger) Fatal() *Event {
 
 // Str adds a string field to the event with proper JSON escaping and validation.
 
-// A default logger for package-level functions.
-var defaultLogger *Logger
-
-func init() {
-	initDefaultLogger()
-}
-
-var isTerminal = isatty
-
 // ParseLevel converts a string to a Level.
 func ParseLevel(levelStr string) Level {
 	switch levelStr {
@@ -441,28 +430,6 @@ func ParseLevel(levelStr string) Level {
 	}
 }
 
-// initDefaultLogger initializes the default logger based on environment variables.
-func initDefaultLogger() {
-	format := os.Getenv("BOLT_FORMAT")
-	if format == "" {
-		if isTerminal(os.Stdout) {
-			format = consoleStr
-		} else {
-			format = "json"
-		}
-	}
-
-	level := ParseLevel(os.Getenv("BOLT_LEVEL"))
-
-	switch format {
-	case consoleStr:
-		defaultLogger = New(NewConsoleHandler(os.Stdout)).SetLevel(level)
-	default:
-		// Default to JSON if the format is not specified or is "json"
-		defaultLogger = New(NewJSONHandler(os.Stdout)).SetLevel(level)
-	}
-}
-
 // SetLevel sets the logging level for the logger using atomic operations for thread safety.
 // This method is safe to call concurrently from multiple goroutines without additional
 // synchronization. The atomic operations prevent race conditions that could lead to
@@ -476,36 +443,6 @@ func (l *Logger) SetLevel(level Level) *Logger {
 	}
 	atomic.StoreInt64(&l.level, int64(level))
 	return l
-}
-
-// Info starts a new message with the INFO level on the default logger.
-func Info() *Event {
-	return defaultLogger.Info()
-}
-
-// Error starts a new message with the ERROR level on the default logger.
-func Error() *Event {
-	return defaultLogger.Error()
-}
-
-// Debug starts a new message with the DEBUG level on the default logger.
-func Debug() *Event {
-	return defaultLogger.Debug()
-}
-
-// Warn starts a new message with the WARN level on the default logger.
-func Warn() *Event {
-	return defaultLogger.Warn()
-}
-
-// Trace starts a new message with the TRACE level on the default logger.
-func Trace() *Event {
-	return defaultLogger.Trace()
-}
-
-// Fatal starts a new message with the FATAL level on the default logger.
-func Fatal() *Event {
-	return defaultLogger.Fatal()
 }
 
 // Additional utility methods and performance optimizations
