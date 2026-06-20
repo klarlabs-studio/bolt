@@ -9,6 +9,14 @@ scan:
     - "CHANGELOG.md"
     - "docs/*.md"
     - "**/README.md"
+    # Test files: OTel trace/span IDs are 16/32-char hex strings (W3C trace
+    # context), structurally indistinguishable from secrets/split-API-keys to
+    # the entropy + SEC-659 rules. bolt is an OTel-correlating logger, so its
+    # tests are full of trace-ID fixtures (e.g. "0102...0f10"). Same rationale
+    # as the workflow-SHA exclusion above; production code stays fully scanned.
+    # Both globs needed: "**/" does not match repo-root files (see README pair).
+    - "*_test.go"
+    - "**/*_test.go"
     # Baseline file is itself a list of finding fingerprints (hashes).
     - ".nox/baseline.json"
     - "benchmarks/"
