@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -260,21 +259,13 @@ func TestEndToEndContextLogger(t *testing.T) {
 	})
 }
 
-// TestEndToEndEnvironmentConfiguration tests environment variable configuration
-func TestEndToEndEnvironmentConfiguration(t *testing.T) {
-	t.Run("BOLT_LEVEL Configuration", func(t *testing.T) {
-		// Save original env
-		originalLevel := os.Getenv("BOLT_LEVEL")
-		defer os.Setenv("BOLT_LEVEL", originalLevel)
-
-		// Set to WARN
-		os.Setenv("BOLT_LEVEL", "warn")
-
-		// Re-initialize default logger
-		initDefaultLogger()
-
+// TestEndToEndLevelConfiguration verifies that a logger constructed with a
+// parsed level filters records correctly. bolt has no global logger and reads
+// no environment variables; callers parse and inject levels explicitly.
+func TestEndToEndLevelConfiguration(t *testing.T) {
+	t.Run("WARN level filtering", func(t *testing.T) {
 		var buf bytes.Buffer
-		testLogger := New(NewJSONHandler(&buf)).SetLevel(ParseLevel(os.Getenv("BOLT_LEVEL")))
+		testLogger := New(NewJSONHandler(&buf)).SetLevel(ParseLevel("warn"))
 
 		buf.Reset()
 		testLogger.Info().Msg("should be filtered")
