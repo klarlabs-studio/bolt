@@ -30,7 +30,8 @@ func TestSlogHandlerSatisfiesInterface(t *testing.T) {
 func TestNewSlogJSONHandler(t *testing.T) {
 	var buf bytes.Buffer
 
-	var h slog.Handler = NewSlogJSONHandler(&buf, nil)
+	// NewSlogJSONHandler returns slog.Handler by its signature.
+	h := NewSlogJSONHandler(&buf, nil)
 	logger := slog.New(h)
 	logger.Info("request handled", "method", "GET", "status", 200)
 
