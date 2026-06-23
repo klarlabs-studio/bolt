@@ -1,7 +1,10 @@
 # Thin caller for the shared klarlabs-studio Go CI bar.
 # All gate logic lives in the reusable workflow — bump versions / add jobs
-# there, once, org-wide. bolt is a perf-sensitive logging library, so it
-# opts into benchmark + cross-platform on top of the standard gate.
+# there, once, org-wide. bolt is a perf-sensitive logging library, so it keeps
+# the benchmark gate (push-to-main only). cross-platform is OFF: bolt's only
+# "OS-ish" code is ANSI color escapes (plain \x1b[..m strings, identical on
+# every OS) — no syscall/GOOS/console handling — so a macOS (10x billing) +
+# Windows matrix validated nothing.
 name: CI
 
 on:
@@ -25,6 +28,6 @@ jobs:
       pull-requests: write
     secrets: inherit
     with:
-      benchmark: true        # bolt cares about perf
-      cross-platform: true   # keep multi-OS on push-to-main
+      benchmark: true         # bolt's only benchmark coverage (push-to-main only)
+      cross-platform: false   # pure-Go + ANSI strings; nothing OS-specific to test
       coverage: true
