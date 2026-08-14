@@ -309,7 +309,22 @@ func (l *Logger) With() *Event {
 
 // Logger returns a new Logger with the event's fields as context.
 
-// Ctx automatically includes OpenTelemetry trace/span IDs if present.
+// Ctx returns a logger carrying the active trace and span IDs from ctx.
+//
+// Deprecated: use Event.Ctx instead — log.Info().Ctx(ctx).Msg("…").
+//
+// This form has to build a derived Logger to carry two fields, so it allocates
+// on every call when a span is active, which is precisely when the correlation
+// is doing its job. Event.Ctx writes the same two fields into the event's pooled
+// buffer and allocates nothing (#111).
+//
+// It is also less accurate. The span is bound once here, so a request-scoped
+// logger reused inside a child span keeps reporting the parent's span ID;
+// Event.Ctx reads the context when the line is emitted.
+//
+// Still supported, and the output is identical — removing it would force a
+// major version and a /v2 import path on every consumer, which this does not
+// warrant. New code should prefer Event.Ctx.
 func (l *Logger) Ctx(ctx context.Context) *Logger {
 	// SpanContextFromContext, not SpanFromContext(ctx).SpanContext(): the latter
 	// materializes a Span implementation to immediately throw it away, and this

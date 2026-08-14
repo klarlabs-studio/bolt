@@ -110,12 +110,23 @@ import "go.klarlabs.de/bolt"
 
 // Anywhere you have a context.Context:
 log := bolt.New(bolt.NewJSONHandler(os.Stdout))
-log.Ctx(ctx).Info().Msg("processing")
+log.Info().Ctx(ctx).Msg("processing")
 // → {"level":"info","trace_id":"…","span_id":"…","message":"processing"}
 ```
 
-`Ctx(ctx)` returns a logger that automatically attaches the active
-trace and span IDs from the context. No manual extraction.
+`Ctx(ctx)` attaches the active trace and span IDs from the context. No manual
+extraction, and no allocation — it writes into the event's pooled buffer, the
+same path as `Str`.
+
+Call it before the event's other fields to keep `trace_id` and `span_id`
+leading. A context with no active span adds nothing.
+
+> `Logger.Ctx(ctx)` — the older `log.Ctx(ctx).Info()` form — still works and
+> emits the identical line, but it is deprecated: it builds a derived logger to
+> carry two fields, so it allocates on every correlated line. It also binds the
+> span once, so a request-scoped logger reused inside a child span keeps
+> reporting the parent's span ID. `Event.Ctx` reads the context when the line is
+> emitted.
 
 ## Migrating
 

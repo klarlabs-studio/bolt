@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -12,6 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type Event struct {
@@ -880,4 +883,43 @@ func (e *Event) WalkFields(fn func(key, value []byte) bool) int {
 		i = skipCommaIfPresent(e.buf, i)
 	}
 	return count
+}
+
+// Ctx attaches the active trace and span IDs from ctx to this event.
+//
+// This is the zero-allocation way to correlate a log line with a trace, and the
+// one to reach for:
+//
+//	log.Info().Ctx(ctx).Str("order", id).Msg("processing")
+//
+// It writes into the event's pooled buffer — the same append path Str uses — so
+// correlation costs nothing beyond the bytes. Logger.Ctx, which this replaces,
+// had to build a whole derived Logger to carry the same two fields, and paid for
+// it on every line (#111).
+//
+// Reading the context at emit time is also more accurate than binding it once:
+// a logger derived by Logger.Ctx keeps the span it was created with, so a
+// request-scoped logger reused inside a child span reports the parent's span ID.
+// This reports the span that is actually active.
+//
+// A context with no valid span adds nothing. Call it before the event's other
+// fields to keep trace_id and span_id leading, as Logger.Ctx placed them.
+func (e *Event) Ctx(ctx context.Context) *Event {
+	if e.l == nil {
+		return e
+	}
+	sc := oteltrace.SpanContextFromContext(ctx)
+	if !sc.IsValid() {
+		return e
+	}
+	// Both IDs are fixed-length hex from OTel: no JSON escaping, and none of the
+	// key/value validation Str performs, because there is no input here that
+	// could be invalid.
+	tid, sid := sc.TraceID(), sc.SpanID()
+	e.buf = append(e.buf, `,"trace_id":"`...)
+	e.buf = hex.AppendEncode(e.buf, tid[:])
+	e.buf = append(e.buf, `","span_id":"`...)
+	e.buf = hex.AppendEncode(e.buf, sid[:])
+	e.buf = append(e.buf, '"')
+	return e
 }
