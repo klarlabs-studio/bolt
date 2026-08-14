@@ -49,3 +49,24 @@ func BenchmarkCtxWithSpan(b *testing.B) {
 		l.Ctx(ctx).Info().Str("k", "v").Msg("hello")
 	}
 }
+
+// The replacement path: correlation on the event, not a derived logger.
+func BenchmarkEventCtxWithSpan(b *testing.B) {
+	l := benchCtxLogger()
+	ctx := spanCtx()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		l.Info().Ctx(ctx).Str("k", "v").Msg("hello")
+	}
+}
+
+func BenchmarkEventCtxNoSpan(b *testing.B) {
+	l := benchCtxLogger()
+	ctx := context.Background()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		l.Info().Ctx(ctx).Str("k", "v").Msg("hello")
+	}
+}

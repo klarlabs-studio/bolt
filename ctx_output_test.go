@@ -76,3 +76,62 @@ func TestCtxPreservesExistingContext(t *testing.T) {
 		t.Errorf("Ctx leaked correlation fields onto the parent logger: %s", buf.String())
 	}
 }
+
+// Event.Ctx replaces Logger.Ctx (#111). The line it emits must be identical, or
+// the replacement is not one.
+func TestEventCtxMatchesLoggerCtx(t *testing.T) {
+	ctx := func() context.Context {
+		tid, _ := trace.TraceIDFromHex("4bf92f3577b34da6a3ce929d0e0e4736")
+		sid, _ := trace.SpanIDFromHex("00f067aa0ba902b7")
+		return trace.ContextWithSpanContext(context.Background(), trace.NewSpanContext(
+			trace.SpanContextConfig{TraceID: tid, SpanID: sid, TraceFlags: trace.FlagsSampled}))
+	}()
+
+	var viaLogger, viaEvent bytes.Buffer
+	New(NewJSONHandler(&viaLogger)).Ctx(ctx).Info().Str("k", "v").Msg("hello")
+	New(NewJSONHandler(&viaEvent)).Info().Ctx(ctx).Str("k", "v").Msg("hello")
+
+	if viaLogger.String() != viaEvent.String() {
+		t.Fatalf("replacement changes the output.\n  logger: %s  event:  %s",
+			viaLogger.String(), viaEvent.String())
+	}
+	t.Logf("identical: %s", strings.TrimSpace(viaEvent.String()))
+}
+
+// Event.Ctx reads the span when the line is emitted, so it reports the span that
+// is actually active — the accuracy gain over binding once (#111).
+func TestEventCtxReadsSpanAtEmitTime(t *testing.T) {
+	mk := func(hexSpan string) context.Context {
+		tid, _ := trace.TraceIDFromHex("4bf92f3577b34da6a3ce929d0e0e4736")
+		sid, _ := trace.SpanIDFromHex(hexSpan)
+		return trace.ContextWithSpanContext(context.Background(), trace.NewSpanContext(
+			trace.SpanContextConfig{TraceID: tid, SpanID: sid}))
+	}
+	parent, child := mk("00f067aa0ba902b7"), mk("1122334455667788")
+
+	// Logger.Ctx binds once: a logger derived under the parent keeps reporting
+	// it even inside the child span.
+	var bound bytes.Buffer
+	derived := New(NewJSONHandler(&bound)).Ctx(parent)
+	derived.Info().Msg("in child")
+	if !strings.Contains(bound.String(), "00f067aa0ba902b7") {
+		t.Fatalf("expected the bound parent span, got %s", bound.String())
+	}
+
+	// Event.Ctx reports whichever span is live at the call.
+	var live bytes.Buffer
+	l := New(NewJSONHandler(&live))
+	l.Info().Ctx(child).Msg("in child")
+	if !strings.Contains(live.String(), "1122334455667788") {
+		t.Errorf("event-scoped Ctx should report the active span, got %s", live.String())
+	}
+}
+
+// A context with no span must add nothing and cost nothing.
+func TestEventCtxNoSpanAddsNothing(t *testing.T) {
+	var buf bytes.Buffer
+	New(NewJSONHandler(&buf)).Info().Ctx(context.Background()).Str("k", "v").Msg("hello")
+	if strings.Contains(buf.String(), "trace_id") || strings.Contains(buf.String(), "span_id") {
+		t.Errorf("no span should add no correlation fields: %s", buf.String())
+	}
+}
