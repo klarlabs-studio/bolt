@@ -99,6 +99,7 @@ package bolt
 
 import (
 	"context"
+	"encoding/hex"
 	"io"
 	"os"
 	"sync/atomic"
@@ -310,15 +311,59 @@ func (l *Logger) With() *Event {
 
 // Ctx automatically includes OpenTelemetry trace/span IDs if present.
 func (l *Logger) Ctx(ctx context.Context) *Logger {
-	logger := l // Start with the current logger
-
-	span := oteltrace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a new logger with trace and span IDs as context
-		logger = logger.With().Str("trace_id", span.SpanContext().TraceID().String()).Str("span_id", span.SpanContext().SpanID().String()).Logger()
+	// SpanContextFromContext, not SpanFromContext(ctx).SpanContext(): the latter
+	// materializes a Span implementation to immediately throw it away, and this
+	// runs on every correlated log line whether or not a span is present.
+	sc := oteltrace.SpanContextFromContext(ctx)
+	if !sc.IsValid() {
+		return l
 	}
-	return logger
+
+	// Build the derived context buffer directly rather than through
+	// With().Str().Str().Logger().
+	//
+	// That path cost six allocations per call — an Event and its copied buffer,
+	// a Logger and its copied buffer, and one each for TraceID().String() and
+	// SpanID().String() — all discarded after a single line (#111). Since Ctx is
+	// the only way to get trace correlation, the allocation appeared exactly when
+	// the OpenTelemetry feature was doing its job, against a README that leads
+	// with "zero-allocation".
+	//
+	// Both IDs are fixed-length hex from OTel, so the encoded size is known
+	// exactly, the buffer is allocated once at the right length and never grown,
+	// and the values need neither JSON escaping nor the key/value validation
+	// Str() performs — there is no input here that could be invalid.
+	tid, sid := sc.TraceID(), sc.SpanID()
+
+	n := len(l.context) + traceFieldsLen
+	if len(l.context) > 0 {
+		n++ // separating comma
+	}
+	buf := make([]byte, 0, n)
+	buf = append(buf, l.context...)
+	if len(buf) > 0 {
+		buf = append(buf, ',')
+	}
+	buf = append(buf, `"trace_id":"`...)
+	buf = hex.AppendEncode(buf, tid[:])
+	buf = append(buf, `","span_id":"`...)
+	buf = hex.AppendEncode(buf, sid[:])
+	buf = append(buf, '"')
+
+	derived := &Logger{
+		handler:      l.handler,
+		context:      buf,
+		errorHandler: l.errorHandler,
+		hooks:        l.hooks,
+		eventHooks:   l.eventHooks,
+	}
+	atomic.StoreInt64(&derived.level, atomic.LoadInt64(&l.level))
+	return derived
 }
+
+// traceFieldsLen is the exact encoded length of the two correlation fields:
+// `"trace_id":"` + 32 hex + `","span_id":"` + 16 hex + `"`.
+const traceFieldsLen = 12 + 2*len(oteltrace.TraceID{}) + 13 + 2*len(oteltrace.SpanID{}) + 1
 
 func (l *Logger) log(level Level) *Event {
 	// Use atomic load to safely read the current level
