@@ -2,6 +2,8 @@ module go.klarlabs.de/bolt
 
 go 1.25.0
 
+toolchain go1.25.14
+
 require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	pgregory.net/rapid v1.3.0
