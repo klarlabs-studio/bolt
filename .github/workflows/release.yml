@@ -201,7 +201,12 @@ jobs:
       actions: read       # required by the reusable workflow
       id-token: write     # required for keyless signing
       contents: write     # required to attach provenance to the release
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
+    # Must be referenced by TAG, not SHA: slsa-verifier derives the trusted
+    # builder's identity from the ref, and upstream requires a tag ("contrary
+    # to the GitHub best practice for third-party actions ... but intentional").
+    # A SHA pin (f23fbfc, nox remediation before nox 5e501b0 learned this)
+    # made generate-builder fail, so v1.7.0 shipped without bolt.intoto.jsonl.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: ${{ needs.release.outputs.hashes }}
       provenance-name: bolt.intoto.jsonl
