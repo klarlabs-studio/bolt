@@ -7,21 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [1.7.0] - 2026-09-19
 
-- **`Logger.Fatal()` now terminates the process** with `os.Exit(1)` after the
-  record is written, matching every other Go logger (zap, zerolog, logrus,
-  slog) and the documented intent. Previously the level was emitted but the
-  process kept running. Tests can override the exit hook via the unexported
-  `exitFunc` package variable; an `init()` in `fatal_test.go` shows the
-  pattern.
-- **`SlogHandler` now produces nested JSON objects for groups** instead of
-  dotted-key flattening (`"request.method"` → `"request":{"method":...}`).
-  This brings the handler into compliance with `testing/slogtest.TestHandler`
-  and the `slog.Handler` contract, including: empty groups omitted from
-  output, empty-key attrs ignored, and `WithAttrs` calls scoped to whichever
-  group was active when they were made. Callers that consumed the previous
-  dotted-key shape must update their JSON parsing.
+### Added
+
+- **`Event.Ctx(ctx)`** writes the active span's `trace_id` and `span_id` into
+  the event at 0 allocs/op: `log.Info().Ctx(ctx).Str("order", id).Msg("…")`.
+  It reads the span at emit time, so a logger reused inside a child span
+  reports the span that is actually active.
+
+### Deprecated
+
+- **`Logger.Ctx`** in favour of `Event.Ctx`. It still works and emits the
+  byte-identical line, but costs 2 allocs/op (192 B) because it must build a
+  `*Logger`. It stays for the life of v1; no import path change.
+
+### Performance
+
+- `Logger.Ctx` cut from six allocations to two.
 
 ### Fixed
 
@@ -40,6 +43,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `line`, identical to `slog.JSONHandler`'s, at the top level, omitted for
   records without a PC. The default slog path drops to 0 allocs/op. Callers
   that relied on `source` appearing by default must set `AddSource: true`.
+
+### Security
+
+- Release binaries and CI build with a patched Go toolchain (#114).
+
+## [1.3.0 – 1.6.0]
+
+These releases shipped without their own changelog sections; the entries
+below accumulated under "Unreleased" during that period and are all included
+in v1.6.0.
+
+### Changed
+
+- **`Logger.Fatal()` now terminates the process** with `os.Exit(1)` after the
+  record is written, matching every other Go logger (zap, zerolog, logrus,
+  slog) and the documented intent. Previously the level was emitted but the
+  process kept running. Tests can override the exit hook via the unexported
+  `exitFunc` package variable; an `init()` in `fatal_test.go` shows the
+  pattern.
+- **`SlogHandler` now produces nested JSON objects for groups** instead of
+  dotted-key flattening (`"request.method"` → `"request":{"method":...}`).
+  This brings the handler into compliance with `testing/slogtest.TestHandler`
+  and the `slog.Handler` contract, including: empty groups omitted from
+  output, empty-key attrs ignored, and `WithAttrs` calls scoped to whichever
+  group was active when they were made. Callers that consumed the previous
+  dotted-key shape must update their JSON parsing.
+
+### Fixed
+
 - **`JSONHandler.Write` and `ConsoleHandler.Write` now serialize writes**
   through a `sync.Mutex`. The previous reliance on `io.Writer.Write` being
   atomic was only safe for writes ≤ `PIPE_BUF` (4–64 KB); a `MaxBufferSize`
@@ -94,7 +126,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: reorganize documentation following GitHub best practices
 - chore: improve .gitignore for test directories and temp files
 - chore: clean up unnecessary test directories and files
-
 
 ## [1.2.2] - 2025-10-03
 
