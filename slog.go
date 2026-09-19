@@ -23,9 +23,10 @@ import (
 //	logger := slog.New(handler)
 //	logger.Info("request handled", "method", "GET", "status", 200)
 type SlogHandler struct {
-	out   io.Writer
-	level slog.Level
-	mu    *sync.Mutex
+	out       io.Writer
+	level     slog.Level
+	addSource bool
+	mu        *sync.Mutex
 
 	// ctxs is a non-empty stack of group contexts. The first frame is the
 	// root (Name == ""); subsequent frames correspond to WithGroup calls.
@@ -44,7 +45,10 @@ type SlogHandlerOptions struct {
 	// Level sets the minimum log level. Defaults to slog.LevelInfo.
 	Level slog.Leveler
 
-	// AddSource adds source file information to log entries.
+	// AddSource adds the log call site to each record as the slog.SourceKey
+	// ("source") attribute: a {"function","file","line"} object, the shape
+	// slog.JSONHandler writes. Records without a PC carry no source. Resolving
+	// the call site allocates, so it is off by default, as in log/slog.
 	AddSource bool
 }
 
@@ -78,6 +82,7 @@ func NewSlogHandler(out io.Writer, opts *SlogHandlerOptions) *SlogHandler {
 		if opts.Level != nil {
 			h.level = opts.Level.Level()
 		}
+		h.addSource = opts.AddSource
 	}
 	return h
 }
@@ -102,17 +107,8 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 		b = append(b, '"')
 	}
 
-	if r.PC != 0 {
-		frame, _ := runtime.CallersFrames([]uintptr{r.PC}).Next()
-		if frame.File != "" {
-			b = append(b, `,"source":{"function":"`...)
-			b = appendJSONString(b, frame.Function)
-			b = append(b, `","file":"`...)
-			b = appendJSONString(b, frame.File)
-			b = append(b, `","line":`...)
-			b = appendInt(b, frame.Line)
-			b = append(b, '}')
-		}
+	if h.addSource && r.PC != 0 {
+		b = appendSlogSource(b, r.PC)
 	}
 
 	emitRecordAttrs := func(dst []byte) []byte {
@@ -219,11 +215,43 @@ func (h *SlogHandler) clone() *SlogHandler {
 		}
 	}
 	return &SlogHandler{
-		out:   h.out,
-		level: h.level,
-		mu:    h.mu,
-		ctxs:  ctxs,
+		out:       h.out,
+		level:     h.level,
+		addSource: h.addSource,
+		mu:        h.mu,
+		ctxs:      ctxs,
 	}
+}
+
+// appendSlogSource writes the call site at pc as the slog.SourceKey group,
+// member for member as slog.JSONHandler does: each of function, file and line
+// only when known, and nothing at all when none is.
+func appendSlogSource(b []byte, pc uintptr) []byte {
+	frame, _ := runtime.CallersFrames([]uintptr{pc}).Next()
+	startLen := len(b)
+	b = append(b, `,"`+slog.SourceKey+`":{`...)
+	innerStart := len(b)
+	if frame.Function != "" {
+		b = append(b, `,"function":"`...)
+		b = appendJSONString(b, frame.Function)
+		b = append(b, '"')
+	}
+	if frame.File != "" {
+		b = append(b, `,"file":"`...)
+		b = appendJSONString(b, frame.File)
+		b = append(b, '"')
+	}
+	if frame.Line != 0 {
+		b = append(b, `,"line":`...)
+		b = appendInt(b, frame.Line)
+	}
+	if len(b) == innerStart {
+		return b[:startLen]
+	}
+	// Drop the first member's leading comma.
+	copy(b[innerStart:], b[innerStart+1:])
+	b = b[:len(b)-1]
+	return append(b, '}')
 }
 
 // bufPool is a pool for slog handler buffers.

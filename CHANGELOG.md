@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`SlogHandlerOptions.AddSource` is now honoured.** The option was declared
+  but never read: the handler wrote `"source"` on every record with a PC —
+  through `slog.Logger`, every record — and paid two allocations (248 B) per
+  record to resolve it. `source` is now written only when `AddSource` is set,
+  as `log/slog` defines it: the `slog.SourceKey` group with `function`, `file`
+  and `line`, identical to `slog.JSONHandler`'s, at the top level, omitted for
+  records without a PC. The default slog path drops to 0 allocs/op. Callers
+  that relied on `source` appearing by default must set `AddSource: true`.
 - **`JSONHandler.Write` and `ConsoleHandler.Write` now serialize writes**
   through a `sync.Mutex`. The previous reliance on `io.Writer.Write` being
   atomic was only safe for writes ≤ `PIPE_BUF` (4–64 KB); a `MaxBufferSize`
