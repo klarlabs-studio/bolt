@@ -908,18 +908,26 @@ func (e *Event) Ctx(ctx context.Context) *Event {
 	if e.l == nil {
 		return e
 	}
+	e.buf = appendTraceFields(e.buf, ctx)
+	return e
+}
+
+// appendTraceFields appends `,"trace_id":"…","span_id":"…"` for the valid span
+// context carried by ctx, and nothing otherwise. It is the one encoding of
+// trace correlation shared by Event.Ctx and SlogHandler.Handle, and allocates
+// nothing.
+func appendTraceFields(b []byte, ctx context.Context) []byte {
 	sc := oteltrace.SpanContextFromContext(ctx)
 	if !sc.IsValid() {
-		return e
+		return b
 	}
 	// Both IDs are fixed-length hex from OTel: no JSON escaping, and none of the
 	// key/value validation Str performs, because there is no input here that
 	// could be invalid.
 	tid, sid := sc.TraceID(), sc.SpanID()
-	e.buf = append(e.buf, `,"trace_id":"`...)
-	e.buf = hex.AppendEncode(e.buf, tid[:])
-	e.buf = append(e.buf, `","span_id":"`...)
-	e.buf = hex.AppendEncode(e.buf, sid[:])
-	e.buf = append(e.buf, '"')
-	return e
+	b = append(b, `,"trace_id":"`...)
+	b = hex.AppendEncode(b, tid[:])
+	b = append(b, `","span_id":"`...)
+	b = hex.AppendEncode(b, sid[:])
+	return append(b, '"')
 }

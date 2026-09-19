@@ -121,6 +121,15 @@ same path as `Str`.
 Call it before the event's other fields to keep `trace_id` and `span_id`
 leading. A context with no active span adds nothing.
 
+Through the `slog.Handler`, the `*Context` methods do the same — the handler
+reads the context `slog` passes it, at no allocation cost:
+
+```go
+logger := slog.New(bolt.NewSlogHandler(os.Stdout, nil))
+logger.InfoContext(ctx, "processing")
+// → {"level":"info","time":"…","trace_id":"…","span_id":"…","message":"processing"}
+```
+
 > `Logger.Ctx(ctx)` — the older `log.Ctx(ctx).Info()` form — still works and
 > emits the identical line, but it is deprecated: it builds a derived logger to
 > carry two fields, so it allocates on every correlated line. It also binds the
