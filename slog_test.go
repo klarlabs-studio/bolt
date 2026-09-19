@@ -251,3 +251,22 @@ func BenchmarkSlogHandler_Disabled(b *testing.B) {
 		logger.Info("filtered out", "key", "value")
 	}
 }
+
+// AddSource resolves the call site on every record, which is where the
+// handler's allocations go; without it the path allocates nothing.
+func BenchmarkSlogHandler_AddSource(b *testing.B) {
+	var buf bytes.Buffer
+	h := NewSlogHandler(&buf, &SlogHandlerOptions{AddSource: true})
+	logger := slog.New(h)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		logger.Info("request handled",
+			"method", "GET",
+			"status", 200,
+			"path", "/api/users",
+		)
+	}
+}
