@@ -93,7 +93,13 @@ func (h *SlogHandler) Enabled(_ context.Context, level slog.Level) bool {
 }
 
 // Handle writes the [slog.Record] as JSON to the output writer.
-func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
+//
+// When ctx carries a valid OpenTelemetry span context, the record is correlated
+// with it: trace_id and span_id are written at the top level, the same fields
+// Event.Ctx writes, so slog's *Context methods (InfoContext and friends) get
+// trace correlation at no allocation cost. A context without a span adds
+// nothing.
+func (h *SlogHandler) Handle(ctx context.Context, r slog.Record) error {
 	buf := bufPool.Get().(*[]byte)
 	b := (*buf)[:0]
 
@@ -110,6 +116,8 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 	if h.addSource && r.PC != 0 {
 		b = appendSlogSource(b, r.PC)
 	}
+
+	b = appendTraceFields(b, ctx)
 
 	emitRecordAttrs := func(dst []byte) []byte {
 		r.Attrs(func(a slog.Attr) bool {

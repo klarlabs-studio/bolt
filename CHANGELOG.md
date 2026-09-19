@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`SlogHandler` now correlates records with the trace in their context.**
+  `Handle` discarded the `context.Context` slog passes it, so
+  `logger.InfoContext(ctx, …)` never carried trace correlation. When the
+  context holds a valid OpenTelemetry span context, the record now gets the
+  same top-level `trace_id` and `span_id` fields `Event.Ctx` writes (one
+  shared encoder); a context without a span adds nothing. 0 allocs/op with or
+  without a span (`BenchmarkSlogCtxWithSpan`, `BenchmarkSlogCtxNoSpan`).
 - **`SlogHandlerOptions.AddSource` is now honoured.** The option was declared
   but never read: the handler wrote `"source"` on every record with a PC —
   through `slog.Logger`, every record — and paid two allocations (248 B) per

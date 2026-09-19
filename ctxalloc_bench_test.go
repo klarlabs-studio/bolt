@@ -3,6 +3,7 @@ package bolt
 import (
 	"context"
 	"io"
+	"log/slog"
 	"testing"
 
 	"go.opentelemetry.io/otel/trace"
@@ -68,5 +69,27 @@ func BenchmarkEventCtxNoSpan(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		l.Info().Ctx(ctx).Str("k", "v").Msg("hello")
+	}
+}
+
+// The same correlation through the slog adapter: InfoContext hands the context
+// to SlogHandler.Handle, which must add it for no more than Event.Ctx does.
+func BenchmarkSlogCtxWithSpan(b *testing.B) {
+	l := slog.New(NewSlogHandler(io.Discard, nil))
+	ctx := spanCtx()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		l.InfoContext(ctx, "hello", "k", "v")
+	}
+}
+
+func BenchmarkSlogCtxNoSpan(b *testing.B) {
+	l := slog.New(NewSlogHandler(io.Discard, nil))
+	ctx := context.Background()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		l.InfoContext(ctx, "hello", "k", "v")
 	}
 }
