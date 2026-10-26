@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Timestamps were written as the local wall clock followed by a literal `Z`, so a process whose local zone was not UTC logged times that were wrong by its offset while claiming to be UTC (11:12 CET was logged as `11:12Z`, which is 10:12Z). `appendRFC3339` now converts to UTC.
+
 ## [1.7.0] - 2026-09-19
 
 ### Added
