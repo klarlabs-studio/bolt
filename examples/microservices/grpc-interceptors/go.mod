@@ -1,10 +1,12 @@
 module go.klarlabs.de/bolt/examples/microservices/grpc-interceptors
 
-go 1.25.0
+go 1.26.0
+
+toolchain go1.26.10
 
 require (
-	go.klarlabs.de/bolt v1.2.1
 	github.com/google/uuid v1.6.0
+	go.klarlabs.de/bolt v1.2.1
 	google.golang.org/grpc v1.81.0
 	google.golang.org/protobuf v1.36.11
 )
