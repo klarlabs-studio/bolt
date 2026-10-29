@@ -230,6 +230,9 @@ func checkBufferSize(buf []byte) error {
 
 // RFC3339 timestamp formatting without allocations
 func appendRFC3339(buf []byte, t time.Time) []byte {
+	// The suffix below is a literal 'Z', so the clock fields must be UTC: a
+	// local time would be relabelled, not converted.
+	t = t.UTC()
 	year, month, day := t.Date()
 	hour, minute, sec := t.Clock()
 	nano := t.Nanosecond()
