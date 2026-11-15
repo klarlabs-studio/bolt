@@ -40,6 +40,30 @@
       "severity": "medium",
       "reason": "intentional: OIDC token write required for cosign keyless signing on deploy-pages.yml? — verify; conservative baseline",
       "created_at": "2026-05-09T10:42:05.381442Z"
+    },
+    {
+      "fingerprint": "c33fd3ff7a9eb75972bc8c4b840ccb8bb440de74b1321fe61ac85e1db5267e7a",
+      "rule_id": "IAC-121",
+      "file_path": "oss-fuzz/Dockerfile",
+      "severity": "medium",
+      "reason": "OSS-Fuzz build image (not a deployed service): OSS-Fuzz's builder runs it as root, never as a long-lived container, so USER, HEALTHCHECK and COPY --chown do not apply; the base image contract is owned by OSS-Fuzz",
+      "created_at": "2026-11-15T10:08:59.063035Z"
+    },
+    {
+      "fingerprint": "b43b289d216d9a422060b29f599e4ac6fafbd8a4a812d0ba8b541f517243513e",
+      "rule_id": "IAC-122",
+      "file_path": "oss-fuzz/Dockerfile",
+      "severity": "medium",
+      "reason": "OSS-Fuzz build image (not a deployed service): OSS-Fuzz's builder runs it as root, never as a long-lived container, so USER, HEALTHCHECK and COPY --chown do not apply; the base image contract is owned by OSS-Fuzz",
+      "created_at": "2026-11-15T10:08:59.063035Z"
+    },
+    {
+      "fingerprint": "88be493c750aa85469d813b46e12122d99565dc5ca22a6b2a0952304d0ebdbdb",
+      "rule_id": "IAC-123",
+      "file_path": "oss-fuzz/Dockerfile",
+      "severity": "low",
+      "reason": "OSS-Fuzz build image (not a deployed service): OSS-Fuzz's builder runs it as root, never as a long-lived container, so USER, HEALTHCHECK and COPY --chown do not apply; the base image contract is owned by OSS-Fuzz",
+      "created_at": "2026-11-15T10:08:59.063035Z"
     }
   ]
 }
