@@ -6,7 +6,7 @@
   Zero-allocation `slog.Handler` for Go with first-class OpenTelemetry.
 
   [![Build](https://github.com/klarlabs-studio/bolt/actions/workflows/ci.yml/badge.svg)](https://github.com/klarlabs-studio/bolt/actions/workflows/ci.yml)
-  [![Nox security grade](https://raw.githubusercontent.com/klarlabs-studio/bolt/main/assets/badge-nox.svg)](https://github.com/klarlabs-studio/bolt/actions/workflows/nox.yml)
+  [![nox security grade](.github/nox-badge.svg)](https://github.com/klarlabs-studio/bolt/security)
   [![Coverage](https://raw.githubusercontent.com/klarlabs-studio/bolt/main/assets/badge-coverage.svg)](https://github.com/klarlabs-studio/bolt/actions/workflows/ci.yml)
   [![Go Reference](https://pkg.go.dev/badge/go.klarlabs.de/bolt.svg)](https://pkg.go.dev/go.klarlabs.de/bolt)
   [![Go Report Card](https://goreportcard.com/badge/go.klarlabs.de/bolt)](https://goreportcard.com/report/go.klarlabs.de/bolt)
